@@ -149,6 +149,10 @@ static int create_directory(bayer_flist list, uint64_t idx)
 
     /* get destination name */
     char* dest_path = DCOPY_build_dest(name);
+    /* No need to copy it */
+    if (dest_path == NULL) {
+        return 0;
+    }
 
    /* create the destination directory */
     BAYER_LOG(BAYER_LOG_DBG, "Creating directory `%s'", dest_path);
@@ -259,6 +263,10 @@ static int create_link(bayer_flist list, uint64_t idx)
 
     /* get destination name */
     const char* dest_path = DCOPY_build_dest(src_path);
+    /* No need to copy it */
+    if (dest_path == NULL) {
+        return 0;
+    }
 
     /* read link target */
     char path[PATH_MAX + 1];
@@ -311,6 +319,10 @@ static int create_file(bayer_flist list, uint64_t idx)
 
     /* get destination name */
     const char* dest_path = DCOPY_build_dest(src_path);
+    /* No need to copy it */
+    if (dest_path == NULL) {
+        return 0;
+    }
 
     /* since file systems like Lustre require xattrs to be set before file is opened,
      * we first create it with mknod and then set xattrs */
@@ -908,6 +920,10 @@ static void copy_files(bayer_flist list)
 
         /* get name of destination file */
         char* dest_path = DCOPY_build_dest(name);
+        /* No need to copy it */
+        if (dest_path == NULL) {
+            continue;
+        }
 
         /* open file, read, write, close, fsync,
          * if we have the last chunk, truncate file */
@@ -992,6 +1008,10 @@ static void DCOPY_set_metadata(int levels, int minlevel, bayer_flist* lists)
             /* get destination name of item */
             const char* name = bayer_flist_file_get_name(list, idx);
             char* dest = DCOPY_build_dest(name);
+            /* No need to copy it */
+            if (dest == NULL) {
+                continue;
+            }
 
             if(DCOPY_user_opts.preserve) {
                 DCOPY_copy_ownership(list, idx, dest);
@@ -1044,6 +1064,7 @@ void DCOPY_print_usage(void)
     /* printf("  -c, --compare       - read data back after writing to compare\n"); */
     printf("  -d, --debug <level> - specify debug verbosity level (default info)\n");
     printf("  -f, --force         - delete destination file if error on open\n");
+    printf("  -i, --input <file>  - read list from file\n");
     printf("  -p, --preserve      - preserve permissions, ownership, timestamps, extended attributes\n");
     printf("  -s, --synchronous   - use synchronous read/write calls (O_DIRECT)\n");
     printf("  -v, --version       - print version info\n");
@@ -1110,10 +1131,14 @@ int main(int argc, \
     /* Set default block size */
     DCOPY_user_opts.block_size = FD_BLOCK_SIZE;
 
+    /* By default, don't have iput file. */
+    DCOPY_user_opts.input_file = NULL;
+
     static struct option long_options[] = {
         {"debug"                , required_argument, 0, 'd'},
         {"force"                , no_argument      , 0, 'f'},
         {"help"                 , no_argument      , 0, 'h'},
+        {"input"                , required_argument, 0, 'i'},
         {"preserve"             , no_argument      , 0, 'p'},
         {"synchronous"          , no_argument      , 0, 's'},
         {"version"              , no_argument      , 0, 'v'},
@@ -1121,7 +1146,7 @@ int main(int argc, \
     };
 
     /* Parse options */
-    while((c = getopt_long(argc, argv, "d:fhpusv", \
+    while((c = getopt_long(argc, argv, "d:fhi:pusv", \
                            long_options, &option_index)) != -1) {
         switch(c) {
 
@@ -1196,6 +1221,12 @@ int main(int argc, \
 
                 DCOPY_exit(EXIT_SUCCESS);
                 break;
+            case 'i':
+                DCOPY_user_opts.input_file = BAYER_STRDUP(optarg);
+                if(DCOPY_global_rank == 0) {
+                    BAYER_LOG(BAYER_LOG_INFO, "Using input list.");
+                }
+                break;
 
             case 'p':
                 DCOPY_user_opts.preserve = true;
@@ -1264,9 +1295,15 @@ int main(int argc, \
 
     /* create an empty file list */
     bayer_flist flist = bayer_flist_new();
-
-    /* walk paths and fill in file list */
-    DCOPY_walk_paths(flist);
+    if (DCOPY_user_opts.input_file == NULL) {
+        /* walk paths and fill in file list */
+        DCOPY_walk_paths(flist);
+    } else {
+    	bayer_flist input_flist = bayer_flist_new();
+        bayer_flist_read_cache(DCOPY_user_opts.input_file, input_flist);
+        bayer_flist_stat(input_flist, flist, DCOPY_input_flist_skip, NULL);
+        bayer_flist_free(&input_flist);
+    }
 
     /* split items in file list into sublists depending on their
      * directory depth */
