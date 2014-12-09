@@ -69,12 +69,18 @@ void bayer_flist_walk_path(
   bayer_flist flist
 );
 
-/* create file list by walking list of directories */
-void bayer_flist_walk_paths(
-  uint64_t num_paths,
-  const char** paths,
-  int use_stat,
-  bayer_flist flist
+/* skip function pointer: given a path input, along with user-provided
+ * arguments, compute whether to skip enqueue this path.
+ * return 1 if skip enqueue, 0 if not.
+ */
+typedef int (*bayer_flist_skip_fn) (const char* path, void* args);
+
+/* create file list by stating files */
+void bayer_flist_stat(
+  bayer_flist input_flist,
+  bayer_flist flist,
+  bayer_flist_skip_fn skip_fn,
+  void *skip_args
 );
 
 /* read file list from file */
