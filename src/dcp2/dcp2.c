@@ -171,6 +171,7 @@ static int create_directory(bayer_flist list, uint64_t idx)
 
     /* get destination name */
     char* dest_path = DCOPY_build_dest(name);
+
     /* No need to copy it */
     if (dest_path == NULL) {
         return 0;
@@ -285,6 +286,7 @@ static int create_link(bayer_flist list, uint64_t idx)
 
     /* get destination name */
     const char* dest_path = DCOPY_build_dest(src_path);
+
     /* No need to copy it */
     if (dest_path == NULL) {
         return 0;
@@ -341,6 +343,7 @@ static int create_file(bayer_flist list, uint64_t idx)
 
     /* get destination name */
     const char* dest_path = DCOPY_build_dest(src_path);
+
     /* No need to copy it */
     if (dest_path == NULL) {
         return 0;
@@ -650,7 +653,7 @@ static int copy_file_normal(
      * no need to truncate if sparse file is enabled
      */
     if (DCOPY_user_opts.sparse) {
-    	return 0;
+        return 0;
     }
     off_t last_written = (off_t) (chunk_size * (chunk_offset + chunk_count));
     off_t file_size_offt = (off_t) file_size;
@@ -736,7 +739,7 @@ static int copy_file_fiemap(
             fiemap->fm_extents[0].fe_logical = chunk_size * chunk_offset;
         }
 
-	fe_logical = fiemap->fm_extents[fiemap->fm_mapped_extents - 1].fe_logical;
+        fe_logical = fiemap->fm_extents[fiemap->fm_mapped_extents - 1].fe_logical;
         fe_length = fiemap->fm_extents[fiemap->fm_mapped_extents - 1].fe_length;
         if (fe_logical + fe_length > (chunk_offset + chunk_count) * chunk_size) {
            fiemap->fm_extents[fiemap->fm_mapped_extents - 1].fe_length -=
@@ -932,6 +935,7 @@ static void copy_files(bayer_flist list)
 
             /* get name of destination file */
             char* dest_path = DCOPY_build_dest(name);
+
             /* No need to copy it */
             if (dest_path == NULL) {
                 continue;
@@ -1237,6 +1241,7 @@ static void copy_files(bayer_flist list)
 
         /* get name of destination file */
         char* dest_path = DCOPY_build_dest(name);
+
         /* No need to copy it */
         if (dest_path == NULL) {
             continue;
@@ -1332,6 +1337,7 @@ static void DCOPY_set_metadata(int levels, int minlevel, bayer_flist* lists)
             /* get destination name of item */
             const char* name = bayer_flist_file_get_name(list, idx);
             char* dest = DCOPY_build_dest(name);
+
             /* No need to copy it */
             if (dest == NULL) {
                 continue;
@@ -1637,7 +1643,7 @@ int main(int argc, \
         /* walk paths and fill in file list */
         DCOPY_walk_paths(flist);
     } else {
-    	bayer_flist input_flist = bayer_flist_new();
+        bayer_flist input_flist = bayer_flist_new();
         bayer_flist_read_cache(DCOPY_user_opts.input_file, input_flist);
         bayer_flist_stat(input_flist, flist, DCOPY_input_flist_skip, NULL);
         bayer_flist_free(&input_flist);
