@@ -622,11 +622,6 @@ static copy_elem* identify_file_sections(bayer_flist list) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &ranks);
 
-    /* indicate which phase we're in to user */
-    if (DCOPY_global_rank == 0) {
-        BAYER_LOG(BAYER_LOG_INFO, "Copying data.");
-    }
-
     /* get chunk size for copying files */
     uint64_t chunk_size = (uint64_t)DCOPY_user_opts.chunk_size;
 
@@ -942,7 +937,7 @@ static copy_elem* identify_file_sections(bayer_flist list) {
         p->next = NULL;
 
         /* set the fields of the struct */
-        p->name = name;
+        p->name = strdup(name);
         p->chunk_offset = chunk_offset;
         p->chunk_count = chunk_count;
         p->file_size = file_size;
@@ -966,6 +961,12 @@ static copy_elem* identify_file_sections(bayer_flist list) {
 
 static void copy_files(bayer_flist list)
 {
+    /* indicate which phase we're in to user */
+    if (DCOPY_global_rank == 0) {
+        BAYER_LOG(BAYER_LOG_INFO, "Copying data.");
+    }
+
+    /* get the head of the linked list */
     copy_elem* p = identify_file_sections(list);
 
     while (p != NULL) {
@@ -975,6 +976,9 @@ static void copy_files(bayer_flist list)
 
         /* call copy_file for each element of the copy_elem linked list of structs */
         copy_file(p->name, dest_path, p->chunk_offset, p->chunk_count, p->file_size);
+
+        /* free the name string */
+        bayer_free(&p->name);
 
         /* free the dest name */
         bayer_free(&dest_path);
