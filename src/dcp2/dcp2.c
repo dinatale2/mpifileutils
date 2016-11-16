@@ -601,19 +601,17 @@ static void copy_files(bayer_flist list)
     /* get chunk size for copying files */
     uint64_t chunk_size = (uint64_t)DCOPY_user_opts.chunk_size;
 
-    /* get the head of the linked list */
-    copy_elem* p = identify_file_sections(list, chunk_size);
+    /* split file list into a linked list of file sections,
+     * this evenly spreads the file sections across processes */
+    bayer_file_chunk* p = bayer_file_chunk_list_alloc(list, chunk_size);
 
+    /* loop over and copy data for each file section we're responsible for */
     while (p != NULL) {
-
         /* get name of destination file */
         char* dest_path = DCOPY_build_dest(p->name);
 
         /* call copy_file for each element of the copy_elem linked list of structs */
         copy_file(p->name, dest_path, p->chunk_offset, p->chunk_count, p->file_size);
-
-        /* free the name string */
-        bayer_free(&p->name);
 
         /* free the dest name */
         bayer_free(&dest_path);
@@ -621,8 +619,9 @@ static void copy_files(bayer_flist list)
         /* update pointer to next element */
         p = p->next;
     }
-    /* free the list */
-    free_file_sections(p);
+
+    /* free the linked list */
+    bayer_file_chunk_list_free(&p);
 }
 
 /* iterate through list of files and set ownership, timestamps,
